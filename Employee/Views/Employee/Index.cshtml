@@ -1,0 +1,164 @@
+﻿@{
+    ViewBag.Title = "Employee CRUD with AJAX";
+}
+
+<div class="container">
+    <h2 class="mt-4">Employee List</h2>
+    <table id="employeeTable" class="table table-bordered table-striped">
+        <thead class="thead-dark">
+            <tr>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Email</th>
+                <th>Date of Birth</th>
+                <th>Department</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <h3 class="mt-4">Create New Employee</h3>
+    <form id="employeeForm" class="form-inline mb-4">
+        <input type="hidden" id="employeeId" />
+        <div class="form-group mx-sm-2">
+            <label for="firstName" class="sr-only">First Name</label>
+            <input type="text" id="firstName" class="form-control" placeholder="First Name" required />
+        </div>
+        <div class="form-group mx-sm-2">
+            <label for="lastName" class="sr-only">Last Name</label>
+            <input type="text" id="lastName" class="form-control" placeholder="Last Name" required />
+        </div>
+        <div class="form-group mx-sm-2">
+            <label for="email" class="sr-only">Email</label>
+            <input type="email" id="email" class="form-control" placeholder="Email" required />
+        </div>
+        <div class="form-group mx-sm-2">
+            <label for="dob" class="sr-only">Date of Birth</label>
+            <input type="date" id="dob" class="form-control" required />
+        </div>
+        <div class="form-group mx-sm-2">
+            <label for="department" class="sr-only">Department</label>
+            <input type="text" id="department" class="form-control" placeholder="Department" required />
+        </div>
+        <button type="button" id="saveBtn" class="btn btn-primary">Save</button>
+    </form>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function () {
+        loadEmployees(); // Load all employees initially
+
+        // Read Employees (GET)
+        function loadEmployees() {
+            $.ajax({
+                url: '/Employee/Read',
+                type: 'GET',
+                success: function (data) {
+                    var rows = '';
+                    $.each(data, function (i, employee) {
+                        rows += '<tr>';
+                        rows += '<td>' + employee.FirstName + '</td>';
+                        rows += '<td>' + employee.LastName + '</td>';
+                        rows += '<td>' + employee.Email + '</td>';
+                        rows += '<td>' + formatDate(employee.DateOfBirth) + '</td>';
+                        rows += '<td>' + employee.Department + '</td>';
+                        rows += '<td>';
+                        rows += '<button class="btn btn-warning btn-sm" onclick="editEmployee(' + employee.Id + ')">Edit</button> ';
+                        rows += '<button class="btn btn-danger btn-sm" onclick="deleteEmployee(' + employee.Id + ')">Delete</button>';
+                        rows += '</td>';
+                        rows += '</tr>';
+                    });
+                    $('#employeeTable tbody').html(rows);
+                }
+            });
+        }
+
+        // Create and Update Employee (POST)
+        $('#saveBtn').click(function () {
+            var employee = {
+                Id: $('#employeeId').val(),
+                FirstName: $('#firstName').val(),
+                LastName: $('#lastName').val(),
+                Email: $('#email').val(),
+                DateOfBirth: $('#dob').val(),
+                Department: $('#department').val()
+            };
+
+            var url = employee.Id ? '/Employee/Edit' : '/Employee/Create';
+
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: employee,
+                success: function () {
+                    loadEmployees();
+                    resetForm();
+                }
+            });
+        });
+
+        // Edit Employee - Fill form with selected employee's data
+        window.editEmployee = function (id) {
+            $.ajax({
+                url: '/Employee/Read',
+                type: 'GET',
+                success: function (data) {
+                    var employee = data.find(e => e.Id == id);
+                    $('#employeeId').val(employee.Id);
+                    $('#firstName').val(employee.FirstName);
+                    $('#lastName').val(employee.LastName);
+                    $('#email').val(employee.Email);
+                    $('#dob').val(formatDateToYMD(formatDate(employee.DateOfBirth)));
+                    $('#department').val(employee.Department);
+                }
+            });
+        };
+
+        // Delete Employee (POST)
+        window.deleteEmployee = function (id) {
+            if (confirm('Are you sure you want to delete this employee?')) {
+                $.ajax({
+                    url: '/Employee/Delete',
+                    type: 'POST',
+                    data: { id: id },
+                    success: function () {
+                        loadEmployees();
+                    }
+                });
+            }
+        };
+
+        // Reset the form after creating/updating an employee
+        function resetForm() {
+            $('#employeeId').val('');
+            $('#firstName').val('');
+            $('#lastName').val('');
+            $('#email').val('');
+            $('#dob').val('');
+            $('#department').val('');
+        }
+        function formatDate(dateString) {
+            // Create a new Date object from the dateString
+            console.log(dateString);
+            var timestamp = dateString.match(/\/Date\((\d+)\)\//)[1]; // Extract the number
+            var date = new Date(parseInt(timestamp)); // Convert to Date object
+            console.log(date);
+            // Check if the date is valid
+            if (isNaN(date.getTime())) {
+                return 'Invalid Date'; // Handle invalid date
+            }
+
+            // Format the date to a readable format (e.g., MM/DD/YYYY)
+            var options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+            return date.toLocaleDateString(undefined, options);
+        }
+        function formatDateToYMD(dateString) {
+            var dateParts = dateString.split('/'); // Split the date by '/'
+            return dateParts[2] + '-' + dateParts[0].padStart(2, '0') + '-' + dateParts[1].padStart(2, '0'); // Return 'yyyy-MM-dd'
+        }
+
+    });
+</script>
